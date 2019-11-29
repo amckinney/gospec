@@ -1,6 +1,7 @@
 package gospec
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 )
@@ -20,9 +21,12 @@ type Identifier struct {
 // NewIdentifier parses the supplied string into an Identifier.
 // Capital letters, whitespace, and punctuation are treated as
 // word boundaries.
-func NewIdentifier(s string) Identifier {
+func NewIdentifier(s string) (*Identifier, error) {
+	if !isValidIdentifier(s) {
+		return nil, fmt.Errorf("%q is not a valid Go identifier", s)
+	}
 	words := parse(s)
-	return Identifier{
+	return &Identifier{
 		Camel:   camel(words),
 		Kebab:   kebab(words),
 		Natural: natural(words),
@@ -30,7 +34,23 @@ func NewIdentifier(s string) Identifier {
 		Pascal:  pascal(words),
 		Snake:   snake(words),
 		Source:  s,
+	}, nil
+}
+
+// isValidIdentifier determines if the given string
+// represents a valid Go identifier.
+//
+//  := letter { letter | unicode_digit }
+func isValidIdentifier(s string) bool {
+	if len(s) == 0 {
+		return false
 	}
+	for i, r := range s {
+		if (i == 0 && !unicode.IsLetter(r)) || (r != '_' && !unicode.In(r, unicode.Letter, unicode.Digit)) {
+			return false
+		}
+	}
+	return true
 }
 
 // parser manages state for parsing an identifier.
