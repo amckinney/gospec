@@ -1,10 +1,17 @@
 package gospec
 
 import (
+	"bytes"
 	"fmt"
+	"go/format"
+	"go/parser"
+	"go/token"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
+
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 // invalidIdentifier matches invalid identifier characters
@@ -114,4 +121,39 @@ var _keywords = map[string]struct{}{
 	"switch":      struct{}{},
 	"type":        struct{}{},
 	"var":         struct{}{},
+}
+
+// RemoveUnusedImports parses the buffer, interpreting it as Go code,
+// and removes all unused imports. If successful, the result is then
+// formatted.
+func RemoveUnusedImports(filename string, buf []byte) ([]byte, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filename, buf, parser.ParseComments)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Go code: %v", err)
+	}
+
+	imports := make(map[string]string)
+	for _, route := range f.Imports {
+		importPath, err := strconv.Unquote(route.Path.Value)
+		if err != nil {
+			// Unreachable. If the file parsed successfully,
+			// the unquote will never fail.
+			return nil, err
+		}
+		imports[route.Name.Name] = importPath
+	}
+
+	for name, path := range imports {
+		if !astutil.UsesImport(f, path) {
+			astutil.DeleteNamedImport(fset, f, name, path)
+		}
+	}
+
+	var buffer bytes.Buffer
+	if err := format.Node(&buffer, fset, f); err != nil {
+		return nil, fmt.Errorf("failed to format Go code: %v", err)
+	}
+
+	return buffer.Bytes(), nil
 }

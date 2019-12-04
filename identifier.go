@@ -53,15 +53,15 @@ func isValidIdentifier(s string) bool {
 	return true
 }
 
-// parser manages state for parsing an identifier.
-type parser struct {
+// identParser manages state for parsing an identifier.
+type identParser struct {
 	word  strings.Builder
 	words []string
 }
 
 // shift adds the current word to the rolling set of words.
 // This is a no-op if the current word is empty.
-func (p *parser) shift() {
+func (p *identParser) shift() {
 	if p.word.Len() > 0 {
 		p.words = append(p.words, p.word.String())
 		p.word.Reset()
@@ -69,7 +69,7 @@ func (p *parser) shift() {
 }
 
 // write adds the given rune to the current word.
-func (p *parser) write(r rune) {
+func (p *identParser) write(r rune) {
 	p.word.WriteRune(r)
 }
 
@@ -79,7 +79,7 @@ func parse(s string) []string {
 	if len(s) == 0 {
 		return nil
 	}
-	p := new(parser)
+	p := new(identParser)
 	for _, r := range s {
 		if isUpper(r) {
 			r = unicode.ToLower(r)
